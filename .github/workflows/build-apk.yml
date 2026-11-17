@@ -5,6 +5,9 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
 
@@ -17,10 +20,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
-      - name: 安装 Android SDK 组件
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+      - name: 准备 Android SDK
+        run: |
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "SDK 目录: $SDK"
+          ls "$SDK" || true
+          SDKM=$(find "$SDK/cmdline-tools" -maxdepth 4 -name sdkmanager -type f 2>/dev/null | head -n 1)
+          echo "sdkmanager: $SDKM"
+          if [ -n "$SDKM" ]; then
+            yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+            "$SDKM" "platforms;android-34" "build-tools;34.0.0" || true
+          fi
 
       - name: 解压工程
         run: unzip -q -o project.zip
