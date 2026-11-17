@@ -24,7 +24,6 @@ jobs:
         run: |
           SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           echo "SDK 目录: $SDK"
-          ls "$SDK" || true
           SDKM=$(find "$SDK/cmdline-tools" -maxdepth 4 -name sdkmanager -type f 2>/dev/null | head -n 1)
           echo "sdkmanager: $SDKM"
           if [ -n "$SDKM" ]; then
@@ -34,6 +33,19 @@ jobs:
 
       - name: 解压工程
         run: unzip -q -o project.zip
+
+      - name: 清理 BOM（保险）
+        run: |
+          cat > /tmp/fixbom.py <<'PY'
+          import pathlib
+          for p in pathlib.Path("android").rglob("*"):
+              if p.is_file() and p.suffix.lower() in {".java", ".xml", ".kts", ".properties"}:
+                  b = p.read_bytes()
+                  if b.startswith(b"\xef\xbb\xbf"):
+                      p.write_bytes(b[3:])
+                      print("已清理 BOM:", p)
+          PY
+          python3 /tmp/fixbom.py
 
       - name: 安装 Gradle 8.2
         run: |
