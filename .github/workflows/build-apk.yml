@@ -1,7 +1,10 @@
 name: Build APK
+
 on: [push, workflow_dispatch]
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,13 +13,16 @@ jobs:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - uses: actions/checkout@v4
+
       - name: 检查 project.zip
         run: |
           if [ ! -f project.zip ]; then echo "请先上传 project.zip 再运行"; exit 1; fi
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
       - name: 准备 Android SDK
         run: |
           SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
@@ -27,6 +33,7 @@ jobs:
             yes | "$SDKM" --licenses > /dev/null 2>&1 || true
             "$SDKM" "platforms;android-34" "build-tools;34.0.0" || true
           fi
+
       - name: 固定签名（首次自动生成并提交）
         run: |
           KS=android/keystore.jks
@@ -45,8 +52,10 @@ jobs:
             git commit -m "chore: 添加固定签名密钥（用于覆盖安装）"
             git push
           fi
+
       - name: 解压工程
         run: unzip -q -o project.zip
+
       - name: 清理 BOM（保险）
         run: |
           cat > /tmp/fixbom.py <<'PY'
@@ -59,17 +68,21 @@ jobs:
                       print("已清理 BOM:", p)
           PY
           python3 /tmp/fixbom.py
+
       - name: 安装 Gradle 8.2
         run: |
           curl -sSL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.2-bin.zip
           unzip -q /tmp/gradle.zip -d "$HOME"
           echo "$HOME/gradle-8.2/bin" >> "$GITHUB_PATH"
+
       - name: 编译 APK
         run: cd android && gradle assembleDebug --no-daemon --stacktrace
+
       - name: 重命名 APK
         run: |
           cd android/app/build/outputs/apk/debug
           cp app-debug.apk "时光手记-v1.0.apk"
+
       - uses: actions/upload-artifact@v4
         with:
           name: 时光手记-v1.0
